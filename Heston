@@ -1,0 +1,137 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy.stats as st
+import enum 
+
+# Esta clase define puts y calls
+class OptionType(enum.Enum):
+    CALL = 1.0
+    PUT = -1.0
+
+# Cálculo del precio de la opción para Monte Carlo
+def EUOptionPriceFromMCPathsGeneralized(CP,S,K,T,r):
+    # S es un vectos de Monte Carlo en T
+    result = np.zeros([len(K),1])
+    if CP == OptionType.CALL:
+        for (idx,k) in enumerate(K):
+            result[idx] = np.exp(-r*T)*np.mean(np.maximum(S-k,0.0))
+    elif CP == OptionType.PUT:
+        for (idx,k) in enumerate(K):
+            result[idx] = np.exp(-r*T)*np.mean(np.maximum(k-S,0.0))
+    return result
+
+# Generador de trayectorias a partir de Euler
+def GeneratePathsHestonEuler(NoOfPaths,NoOfSteps,T,r,S_0,kappa,gamma,rho,vbar,v0):    
+    Z1 = np.random.normal(0.0,1.0,[NoOfPaths,NoOfSteps])
+    Z2 = np.random.normal(0.0,1.0,[NoOfPaths,NoOfSteps])
+    W1 = np.zeros([NoOfPaths, NoOfSteps+1])
+    W2 = np.zeros([NoOfPaths, NoOfSteps+1])
+    V = np.zeros([NoOfPaths, NoOfSteps+1])
+    X = np.zeros([NoOfPaths, NoOfSteps+1])
+    V[:,0]=v0
+    X[:,0]=np.log(S_0)
+    
+    time = np.zeros([NoOfSteps+1])
+        
+    dt = T / float(NoOfSteps)
+    for i in range(0,NoOfSteps):
+        # Necesario asegurarse que las muestras de la normal tienen media 0 y varianza 1
+        if NoOfPaths > 1:
+            Z1[:,i] = (Z1[:,i] - np.mean(Z1[:,i])) / np.std(Z1[:,i])
+            Z2[:,i] = (Z2[:,i] - np.mean(Z2[:,i])) / np.std(Z2[:,i])
+        
+        W1[:,i+1] = W1[:,i] + np.power(dt, 0.5)*Z1[:,i]
+        W2[:,i+1] = W2[:,i] + np.power(dt, 0.5)*Z2[:,i]
+        
+        # Condición límite truncada
+        V[:,i+1] = V[:,i] + kappa*(vbar - V[:,i]) * dt + gamma* np.sqrt(V[:,i]) * (W1[:,i+1]-W1[:,i])
+        V[:,i+1] = np.maximum(V[:,i+1],0.0)
+        
+        term1 = rho * (W1[:,i+1]-W1[:,i]) + np.sqrt(1-rho**2) * (W2[:,i+1]-W2[:,i])
+        
+        X[:,i+1] = X[:,i] + (r - 0.5*V[:,i])*dt + np.sqrt(V[:,i])*term1
+        time[i+1] = time[i] +dt
+        
+    # Cálculo el exponente
+    S = np.exp(X)
+    paths = {"time":time,"S":S}
+    return paths
+
+# Proceso CIR
+def CIR_Sample(NoOfPaths,kappa,gamma,vbar,s,t,v_s):
+    delta = 4.0 *kappa*vbar/gamma/gamma
+    c= 1.0/(4.0*kappa)*gamma*gamma*(1.0-np.exp(-kappa*(t-s)))
+    kappaBar = 4.0*kappa*v_s*np.exp(-kappa*(t-s))/(gamma*gamma*(1.0-np.exp(-kappa*(t-s))))
+    sample = c* np.random.noncentral_chisquare(delta,kappaBar,NoOfPaths)
+    return  sample
+
+# Generador de trayectorias a partir de la solución quasi-exacta
+def GeneratePathsHestonAES(NoOfPaths,NoOfSteps,T,r,S_0,kappa,gamma,rho,vbar,v0):    
+    Z1 = np.random.normal(0.0,1.0,[NoOfPaths,NoOfSteps])
+    W1 = np.zeros([NoOfPaths, NoOfSteps+1])
+    V = np.zeros([NoOfPaths, NoOfSteps+1])
+    X = np.zeros([NoOfPaths, NoOfSteps+1])
+    V[:,0]=v0
+    X[:,0]=np.log(S_0)
+    
+    time = np.zeros([NoOfSteps+1])
+        
+    dt = T / float(NoOfSteps)
+    for i in range(0,NoOfSteps):
+        # Necesario asegurarse que las muestras de la normal tienen media 0 y varianza 1
+        if NoOfPaths > 1:
+            Z1[:,i] = (Z1[:,i] - np.mean(Z1[:,i])) / np.std(Z1[:,i])
+        W1[:,i+1] = W1[:,i] + np.power(dt, 0.5)*Z1[:,i]
+        
+        # Soluciones exactas para la varianza
+        V[:,i+1] = CIR_Sample(NoOfPaths,kappa,gamma,vbar,0,dt,V[:,i])
+        k0 = (r -rho/gamma*kappa*vbar)*dt
+        k1 = (rho*kappa/gamma -0.5)*dt - rho/gamma
+        k2 = rho / gamma
+        X[:,i+1] = X[:,i] + k0 + k1*V[:,i] + k2 *V[:,i+1] + np.sqrt((1.0-rho**2)*V[:,i])*(W1[:,i+1]-W1[:,i])
+        time[i+1] = time[i] +dt
+        
+    # Cálculo del exponente
+    S = np.exp(X)
+    paths = {"time":time,"S":S}
+    return paths
+
+def mainCalculation():
+    NoOfPaths = 2500
+    NoOfSteps = 500
+    
+    # Parámetros del modelo de Heston
+    gamma = 1.0 # controla la volatilidad del proceso de varianza
+    kappa = 0.5 # velocidad de reversión a la media
+    vbar  = 0.04 # media a largo plazo
+    rho   = -0.9 # correlación entre los movimientos brownianos
+    v0    = 0.04 # valor inicial de v
+    T     = 1.0 # tiempo total
+    S_0   = 100.0 # valor inicial de S
+    r     = 0.1 # tipo de interés
+    CP    = OptionType.CALL # elección de tipo de opción
+    
+    # Simulación de Euler
+    pathsEULER = GeneratePathsHestonEuler(NoOfPaths,NoOfSteps,T,r,S_0,kappa,gamma,rho,vbar,v0)
+    S_Euler = pathsEULER["S"]
+    
+    # Simulación quasi-exacta
+    pathsAES = GeneratePathsHestonAES(NoOfPaths,NoOfSteps,T,r,S_0,kappa,gamma,rho,vbar,v0)
+    S_AES = pathsAES["S"]
+    
+    # Strike específico para el análisis
+    K = np.arange(10,200,2)
+    
+    # Cálculo del valor de las opciones    
+    OptPrice_EULER = EUOptionPriceFromMCPathsGeneralized(CP,S_Euler[:,-1],K,T,r)
+    OptPrice_AES   = EUOptionPriceFromMCPathsGeneralized(CP,S_AES[:,-1],K,T,r)
+    
+    plt.figure(1)
+    plt.plot(K,OptPrice_EULER,'--k')
+    plt.plot(K,OptPrice_AES,'.b')
+    plt.legend(['Euler','AES'])
+    plt.grid()
+    plt.xlabel('strike, K')
+    plt.ylabel('option price')
+    
+mainCalculation()
