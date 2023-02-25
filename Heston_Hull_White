@@ -1,0 +1,207 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import scipy.special as sp
+import scipy.integrate as integrate
+import enum 
+
+# Clase que define Call y Put
+class OptionType(enum.Enum):
+    CALL = 1.0
+    PUT = -1.0   
+
+# Cálculo del precio de una opción
+def EUOptionPriceFromMCPathsGeneralizedStochIR(CP,S,K,T,M):
+    # S es un vectos de Monte Carlo en T
+    result = np.zeros([len(K),1])
+    if CP == OptionType.CALL:
+        for (idx,k) in enumerate(K):
+            result[idx] = np.mean(1.0/M*np.maximum(S-k,0.0))
+    elif CP == OptionType.PUT:
+        for (idx,k) in enumerate(K):
+            result[idx] = np.mean(1.0/M*np.maximum(k-S,0.0))
+    return result
+
+# Proceso CIR
+def CIR_Sample(NoOfPaths,kappa,gamma,vbar,s,t,v_s):
+    delta = 4.0 *kappa*vbar/gamma/gamma
+    c= 1.0/(4.0*kappa)*gamma*gamma*(1.0-np.exp(-kappa*(t-s)))
+    kappaBar = 4.0*kappa*v_s*np.exp(-kappa*(t-s))/(gamma*gamma*(1.0-np.exp(-kappa*(t-s))))
+    sample = c* np.random.noncentral_chisquare(delta,kappaBar,NoOfPaths)
+    return  sample
+
+# Generador de trayectorias a partir de la solución quasi-exacta
+def GeneratePathsHestonHW_AES(NoOfPaths,NoOfSteps,P0T,T,S_0,kappa,gamma,rhoxr,rhoxv,vbar,v0,lambd,eta):    
+ # time-step needed for differentiation
+    dt = 0.0001    
+    f0T = lambda t: - (np.log(P0T(t+dt))-np.log(P0T(t-dt)))/(2*dt)
+    
+    # Initial interest rate is a forward rate at time t->0
+    r0 = f0T(0.00001)
+    theta = lambda t: 1.0/lambd * (f0T(t+dt)-f0T(t-dt))/(2.0*dt) + f0T(t) + eta*eta/(2.0*lambd*lambd)*(1.0-np.exp(-2.0*lambd*t))
+    
+    Z1 = np.random.normal(0.0,1.0,[NoOfPaths,NoOfSteps])
+    Z2 = np.random.normal(0.0,1.0,[NoOfPaths,NoOfSteps])
+    Z3 = np.random.normal(0.0,1.0,[NoOfPaths,NoOfSteps])
+    W1 = np.zeros([NoOfPaths, NoOfSteps+1])
+    W2 = np.zeros([NoOfPaths, NoOfSteps+1])
+    W3 = np.zeros([NoOfPaths, NoOfSteps+1])
+    V = np.zeros([NoOfPaths, NoOfSteps+1])
+    X = np.zeros([NoOfPaths, NoOfSteps+1])
+    R = np.zeros([NoOfPaths, NoOfSteps+1])
+    M_t = np.ones([NoOfPaths,NoOfSteps+1])
+    R[:,0]=r0
+    V[:,0]=v0
+    X[:,0]=np.log(S_0)
+    
+    time = np.zeros([NoOfSteps+1])
+        
+    dt = T / float(NoOfSteps)
+    for i in range(0,NoOfSteps):
+        # Necesario asegurarse que las muestras de la normal tienen media 0 y varianza 1
+        if NoOfPaths > 1:
+            Z1[:,i] = (Z1[:,i] - np.mean(Z1[:,i])) / np.std(Z1[:,i])
+            Z2[:,i] = (Z2[:,i] - np.mean(Z2[:,i])) / np.std(Z2[:,i])
+            Z3[:,i] = (Z3[:,i] - np.mean(Z3[:,i])) / np.std(Z3[:,i])
+        
+        W1[:,i+1] = W1[:,i] + np.power(dt, 0.5)*Z1[:,i]
+        W2[:,i+1] = W2[:,i] + np.power(dt, 0.5)*Z2[:,i]
+        W3[:,i+1] = W3[:,i] + np.power(dt, 0.5)*Z3[:,i]
+        
+        R[:,i+1] = R[:,i] + lambd*(theta(time[i]) - R[:,i]) * dt + eta* (W1[:,i+1]-W1[:,i])
+        M_t[:,i+1] = M_t[:,i] * np.exp(0.5*(R[:,i+1] + R[:,i])*dt)
+        
+        # Soluciones exactas para la varianza
+        V[:,i+1] = CIR_Sample(NoOfPaths,kappa,gamma,vbar,0,dt,V[:,i])
+         
+        k0 = -rhoxv /gamma * kappa*vbar*dt
+        k2 = rhoxv/gamma
+        k1 = kappa*k2 -0.5
+        k3 = np.sqrt(1.0-rhoxr*rhoxr - rhoxv*rhoxv)
+        
+        X[:,i+1] = X[:,i] + k0 + (k1*dt - k2)*V[:,i] + R[:,i]*dt + k2*V[:,i+1]+\
+                    + np.sqrt(V[:,i]*dt)*(rhoxr*Z1[:,i] + k3 * Z3[:,i])
+        
+        # Asegurarse que: E(S(T)/M(T))= S0
+        a = S_0 / np.mean(np.exp(X[:,i+1])/M_t[:,i+1])
+        X[:,i+1] = X[:,i+1] + np.log(a)
+        time[i+1] = time[i] +dt
+        
+    # Cálculo el exponente
+    S = np.exp(X)
+    paths = {"time":time,"S":S,"R":R,"M_t":M_t}
+    return paths
+
+# Generador de trayectorias a partir de Euler
+def GeneratePathsHestonHWEuler(NoOfPaths,NoOfSteps,P0T,T,S_0,kappa,gamma,rhoxr,rhoxv,vbar,v0,lambd,eta):    
+ # time-step needed for differentiation
+    dt = 0.0001    
+    f0T = lambda t: - (np.log(P0T(t+dt))-np.log(P0T(t-dt)))/(2*dt)
+    
+    #  # Tipo de interés inicial es un tipo de interés a plazo en el momento t->0
+    r0 = f0T(0.00001)
+    theta = lambda t: 1.0/lambd * (f0T(t+dt)-f0T(t-dt))/(2.0*dt) + f0T(t) + eta*eta/(2.0*lambd*lambd)*(1.0-np.exp(-2.0*lambd*t))
+    
+    Z1 = np.random.normal(0.0,1.0,[NoOfPaths,NoOfSteps])
+    Z2 = np.random.normal(0.0,1.0,[NoOfPaths,NoOfSteps])
+    Z3 = np.random.normal(0.0,1.0,[NoOfPaths,NoOfSteps])
+    W1 = np.zeros([NoOfPaths, NoOfSteps+1])
+    W2 = np.zeros([NoOfPaths, NoOfSteps+1])
+    W3 = np.zeros([NoOfPaths, NoOfSteps+1])
+    V = np.zeros([NoOfPaths, NoOfSteps+1])
+    X = np.zeros([NoOfPaths, NoOfSteps+1])
+    R = np.zeros([NoOfPaths, NoOfSteps+1])
+    M_t = np.ones([NoOfPaths,NoOfSteps+1])
+    R[:,0]=r0
+    V[:,0]=v0
+    X[:,0]=np.log(S_0)
+    
+    time = np.zeros([NoOfSteps+1])
+        
+    dt = T / float(NoOfSteps)
+    for i in range(0,NoOfSteps):
+        # Necesario asegurarse que las muestras de la normal tienen media 0 y varianza 1
+        if NoOfPaths > 1:
+            Z1[:,i] = (Z1[:,i] - np.mean(Z1[:,i])) / np.std(Z1[:,i])
+            Z2[:,i] = (Z2[:,i] - np.mean(Z2[:,i])) / np.std(Z2[:,i])
+            Z3[:,i] = (Z3[:,i] - np.mean(Z3[:,i])) / np.std(Z3[:,i])
+        
+        W1[:,i+1] = W1[:,i] + np.power(dt, 0.5)*Z1[:,i]
+        W2[:,i+1] = W2[:,i] + np.power(dt, 0.5)*Z2[:,i]
+        W3[:,i+1] = W3[:,i] + np.power(dt, 0.5)*Z3[:,i]
+        
+        # Condición límite truncada
+        R[:,i+1] = R[:,i] + lambd*(theta(time[i]) - R[:,i]) * dt + eta* (W1[:,i+1]-W1[:,i])
+        M_t[:,i+1] = M_t[:,i] * np.exp(0.5*(R[:,i+1] + R[:,i])*dt) #de donde sale el 0.5
+        V[:,i+1] = V[:,i] + kappa*(vbar - V[:,i]) * dt + gamma* np.sqrt(V[:,i]) * (W2[:,i+1]-W2[:,i])
+        V[:,i+1] = np.maximum(V[:,i+1],0.0)
+          
+        term1 = rhoxr * (W1[:,i+1]-W1[:,i]) + rhoxv * (W2[:,i+1]-W2[:,i]) \
+                + np.sqrt(1.0-rhoxr*rhoxr-rhoxv*rhoxv)* (W3[:,i+1]-W3[:,i])
+                
+        X[:,i+1] = X[:,i] + (R[:,i] - 0.5*V[:,i])*dt + np.sqrt(V[:,i])*term1
+        time[i+1] = time[i] +dt            
+        
+        # Asegurar que: E(S(T)/M(T))= S0
+        a = S_0 / np.mean(np.exp(X[:,i+1])/M_t[:,i+1])
+        X[:,i+1] = X[:,i+1] + np.log(a)
+        
+    # Cálculo de exponente
+    S = np.exp(X)
+    paths = {"time":time,"S":S,"R":R,"M_t":M_t}
+    return paths
+
+def mainCalculation():
+    CP  = OptionType.CALL  
+    
+    NoOfPaths = 10000
+    NoOfSteps = 500
+    
+    # Definición de parámetros
+    lambd = 1.12 # Velocidad de reversión a la media del tipo de interés
+    eta   = 0.01
+    S0    = 100.0
+    T     = 15.0       
+    r     = 0.1
+   
+    # Strike range
+    K = np.linspace(.01,1.8*S0*np.exp(r*T),20)
+    K = np.array(K).reshape([len(K),1])
+      
+    # We define a ZCB curve (obtained from the market)
+    P0T = lambda T: np.exp(-r*T) 
+    
+    # Settings for the COS method
+    N = 2000
+    L = 15  
+    
+    gamma = 0.3
+    vbar  = 0.05
+    v0    = 0.02
+    rhoxr = 0.5
+    rhoxv =-0.8
+    kappa = 0.5
+    
+    np.random.seed(1)
+    paths = GeneratePathsHestonHWEuler(NoOfPaths,NoOfSteps,P0T,T,S0,kappa,gamma,rhoxr,rhoxv,vbar,v0,lambd,eta)
+    S = paths["S"]
+    M_t = paths["M_t"]
+    
+    print(np.mean(S[:,-1]/M_t[:,-1]))
+    valueOptMC= EUOptionPriceFromMCPathsGeneralizedStochIR(CP,S[:,-1],K,T,M_t[:,-1])
+    
+    np.random.seed(1)
+    pathsExact = GeneratePathsHestonHW_AES(NoOfPaths,NoOfSteps,P0T,T,S0,kappa,gamma,rhoxr,rhoxv,vbar,v0,lambd,eta)
+    S_ex = pathsExact["S"]
+    M_t_ex = pathsExact["M_t"]
+    valueOptMC_ex= EUOptionPriceFromMCPathsGeneralizedStochIR(CP,S_ex[:,-1],K,T,M_t_ex[:,-1])
+    
+    print(np.mean(S_ex[:,-1]/M_t_ex[:,-1]))
+    
+    plt.figure(1)
+    plt.plot(K,valueOptMC)
+    plt.plot(K,valueOptMC_ex,'.k')
+    plt.ylim([0.0,110.0])
+    plt.legend(['Euler','AES'])
+        
+ 
+mainCalculation()
