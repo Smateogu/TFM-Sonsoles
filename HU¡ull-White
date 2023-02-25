@@ -1,0 +1,57 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Generador de trayectorias a partir de Euler
+def GeneratePathsHWEuler(NoOfPaths,NoOfSteps,T,P0T, lambd, eta):    
+    # time-step needed for differentiation
+    dt = 0.0001    
+    f0T = lambda t: - (np.log(P0T(t+dt))-np.log(P0T(t-dt)))/(2*dt)
+    
+    # Tipo de interés inicial es un tipo de interés a plazo en el momento t->0
+    r0 = f0T(0.00001)
+    theta = lambda t: 1.0/lambd * (f0T(t+dt)-f0T(t-dt))/(2.0*dt) + f0T(t) + \
+    eta*eta/(2.0*lambd*lambd)*(1.0-np.exp(-2.0*lambd*t))      
+    
+    Z = np.random.normal(0.0,1.0,[NoOfPaths,NoOfSteps])
+    W = np.zeros([NoOfPaths, NoOfSteps+1])
+    R = np.zeros([NoOfPaths, NoOfSteps+1])
+    R[:,0]=r0
+    time = np.zeros([NoOfSteps+1])
+        
+    dt = T / float(NoOfSteps)
+    for i in range(0,NoOfSteps):
+        # Necesario asegurarse que las muestras de la normal tienen media 0 y varianza 1
+        if NoOfPaths > 1:
+            Z[:,i] = (Z[:,i] - np.mean(Z[:,i])) / np.std(Z[:,i])
+        W[:,i+1] = W[:,i] + np.power(dt, 0.5)*Z[:,i]
+        R[:,i+1] = R[:,i] + lambd*(theta(time[i]) - R[:,i]) * dt + eta* (W[:,i+1]-W[:,i])
+        time[i+1] = time[i] +dt
+        
+    # Salidas
+    paths = {"time":time,"R":R}
+    return paths
+
+def mainCalculation():
+    NoOfPaths = 1
+    NoOfSteps = 5000
+    T         = 50.0 # Tiempo total
+    lambd     = 0.5 # Velocidad de reversión a la media del tipo de interés
+    eta       = 0.01 #Nivel global de la volatilidad
+    
+    # Definimos una curva ZCB (obtenida del mercado)
+    P0T = lambda T: np.exp(-0.05*T) 
+
+    # Efecto de la reversión media lambda
+    plt.figure(1) 
+    legend = []
+    np.random.seed(2)
+    Paths = GeneratePathsHWEuler(NoOfPaths,NoOfSteps,T,P0T, lambd, eta)
+    timeGrid = Paths["time"]
+    R = Paths["R"]
+    plt.plot(timeGrid, np.transpose(R))  
+    plt.grid()
+    plt.xlabel("time")
+    plt.ylabel("R(t)")
+        
+    
+mainCalculation()
