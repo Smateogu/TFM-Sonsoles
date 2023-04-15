@@ -1,15 +1,15 @@
-#TFM-Sonsoles
+    #TFM-Sonsoles
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.stats as st
 import enum 
 import scipy.optimize as optimize
 
-#Establecemos i = número imaginario
+    #Establecemos i = número imaginario
 
 i   = np.complex(0.0,1.0)
 
-#Esta clase define puts y calls
+    #Esta clase define puts y calls
 class OptionType(enum.Enum):
     CALL = 1.0
     PUT = -1.0
@@ -55,7 +55,7 @@ def CallPutOptionPriceCOSMthd(cf,CP,S0,r,tau,K,N,L):
     value = np.exp(-r * tau) * K * np.real(mat.dot(temp))     
     return value
 
-#Determinación de coeficientes para los precios put
+    #Determinación de coeficientes para los precios put
 
 def CallPutCoefficients(CP,a,b,k):
     if CP==OptionType.CALL:                  
@@ -94,7 +94,7 @@ def Chi_Psi(a,b,c,d,k):
     value = {"chi":chi,"psi":psi }
     return value
     
-#Precio de opciones call por Black - Scholes
+    #Precio de opciones call por Black - Scholes
 
 def BS_Call_Put_Option_Price(CP,S_0,K,sigma,tau,r):
     if K is list:
@@ -108,7 +108,7 @@ def BS_Call_Put_Option_Price(CP,S_0,K,sigma,tau,r):
         value = st.norm.cdf(-d2) * K * np.exp(-r * tau) - st.norm.cdf(-d1)*S_0
     return value
 
-#Método de volatilidad implícita
+    #Método de volatilidad implícita
 
 def ImpliedVolatility(CP,marketPrice,K,T,S_0,r):
 
