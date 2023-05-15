@@ -332,30 +332,6 @@ def calibrationH1HW_Global(CP,kappa,Rxr,eta,lambd,K,marketPrice,S0,T,P0T):
                    "v0":v0_est,'ErrorFinal':pars.fun}
     return parmCalibr
 
-# Calibration of the Heston Hull-White model 
-
-def calibrationH1HW(CP,kappa,Rxr,eta,lambd,K,marketPrice,S0,T,P0T):
-    K = np.array(K)
-    marketPrice = np.array(marketPrice)
-    # x = [gamma,vBar,Rxv,v0]
-    f_obj = lambda x: TargetValH1HW(CP,kappa,x[0],x[1],Rxr,x[2],x[3],eta,lambd,K,marketPrice,S0,T,P0T)
-
-    # Random initial guess
-
-    #[gamma,vBar,Rxv,v0]
-    initial = np.array([1.0, 0.05,-0.7, 0.05])
-    pars  = minimize(f_obj,initial,method='nelder-mead', options = \
-                     {'xtol': 1e-05, 'disp': False,'maxiter':100})
-    print(pars)
-
-    gamma_est = pars.x[0]
-    vBar_est = pars.x[1]
-    Rxv_est = pars.x[2]
-    v0_est = pars.x[3]
-    parmCalibr =  {"gamma":gamma_est,"vBar":vBar_est,"Rxv":Rxv_est,\
-                   "v0":v0_est,'ErrorFinal':pars.fun}
-    return parmCalibr
-
 
 def TargetValH1HW(CP,kappa,gamma,vBar,Rxr,Rxv,v0,eta,lambd,K,marketPrice,S0,T,P0T):
     if K is not np.array:
@@ -379,12 +355,12 @@ def TargetValH1HW(CP,kappa,gamma,vBar,Rxr,Rxv,v0,eta,lambd,K,marketPrice,S0,T,P0
     return value
 
 def mainCalculation():
-    CP  = OptionType.PUT
+    CP  = OptionType.CALL
 
     # HW model parameter settings
 
-    lambd = 0.04648
-    eta   = 0.0058
+    lambd = 0.04941
+    eta   = 0.00824
     S0    = 1145.88       
 
     # Fixed SZHW / H1-HW model parameters
@@ -402,25 +378,62 @@ def mainCalculation():
     N = 2000
     L = 15  
 
-    ################## Here we define market call option prices #################
-
-    #T = 0.5
-    #referenceIV  = np.array([57.61, 22.95, 15.9])/100.0
+    ################## Here we define market option prices #################
     
-    #T = 1.0
-    #referenceIV  = np.array([127.7287, 216.4284, 367.837])/1000.0
-    
+    #Para fecha de referencia 04/10/2021
+    #CALL
     #T = 1.0
     #referenceIV = np.array([803.807, 487.1833, 233.2686])/1000.0
-
-    #T = 1.0
-    #referenceIV = np.array([48.53, 24.49, 19.23])/100.0
     
-    T = 2.0
-    referenceIV = np.array([197.4155, 315.9529, 495.6061])/1000.0
-
-    #T = 10.0
-    #referenceIV = np.array([36.76, 29.18, 27.66])/100.0
+    #CALL
+    #T = 2.0
+    #referenceIV = np.array([783.6343, 283.6715, 137.0928])/1000.0
+    
+    #CALL
+    #T = 3.0
+    #referenceIV = np.array([766.7052, 314.8998, 179.235])/1000.0
+    
+    #PUT
+    #T = 1.0
+    #referenceIV = np.array([127.7287, 963.1922, 963.1922])/1000.0
+    
+    #PUT
+    #T = 2.0
+    #referenceIV = np.array([223.3451, 537.363, 797.7749])/1000.0
+    
+    #PUT
+    #T = 3.0
+    #referenceIV = np.array([310.0075, 674.2464, 946.6038])/1000.0
+    
+    
+    
+    #Para fecha de referencia 20/05/2021
+    
+    
+    #CALL
+    #T = 1.0
+    #referenceIV = np.array([812.2896, 495.6061, 240.8545])/1000.0
+    
+    #CALL
+    #T = 2.0
+    #referenceIV = np.array([791.1229, 292.7653, 146.8104])/1000.0
+    
+    #CALL
+    T = 3.0
+    referenceIV = np.array([780.8868, 328.2872, 105.0797])/1000.0
+    
+    #PUT
+    #T = 1.0
+    #referenceIV = np.array([110.8379, 332.2509, 905.3051])/1000.0
+    
+    #PUT
+    #T = 2.0
+    #referenceIV = np.array([197.4155, 495.6061, 1064,906])/1000.0
+    
+    #PUT
+    #T = 3.0
+    #referenceIV = np.array([283.1448, 629,4516, 1205.151])/1000.0
+    
 
     # Strike range
 
@@ -435,10 +448,10 @@ def mainCalculation():
     # Calibrate the H1HW model and show the output
 
     plt.figure(2)
-    plt.title('Calibration of the H1HW model')
+    plt.title('Calibración del modelo H1HW')
     plt.plot(K,referencePrice)
     plt.xlabel('strike, K')
-    plt.ylabel('reference option price')
+    plt.ylabel('Precio de opción de referencia')
     plt.grid()
 
     calibratedParms =  calibrationH1HW_Global(CP,kappa,Rxr,eta,lambd,K,referencePrice,S0,T,P0T)
@@ -472,7 +485,8 @@ def mainCalculation():
     plt.plot(K,IVH1HW,'--r')
     plt.grid()
     plt.legend(['market','H1HW'])
-
+    plt.xlabel('strike, K')
+    plt.ylabel('Volatilidad Implícita')
     print('Market IV')
     print(IVMarket)
     print('H1HW IV')
