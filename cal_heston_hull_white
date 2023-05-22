@@ -6,6 +6,7 @@ import scipy.special as sp
 import enum 
 import scipy.optimize as optimize
 from scipy.optimize import minimize
+import QuantLib as ql
 
 # Set i= imaginary number
 
@@ -355,24 +356,24 @@ def TargetValH1HW(CP,kappa,gamma,vBar,Rxr,Rxv,v0,eta,lambd,K,marketPrice,S0,T,P0
     return value
 
 def mainCalculation():
-    CP  = OptionType.CALL
+    CP  = OptionType.PUT
 
     # HW model parameter settings
 
-    lambd = 0.04941
-    eta   = 0.00824
-    S0    = 1145.88       
+    lambd = 0.01603
+    eta   = 0.00194
+    S0    = 4031.81      
 
     # Fixed SZHW / H1-HW model parameters
 
     kappa =  0.5
-    Rxr   =  0.3
+    Rxr   =  2
 
     # We define a ZCB curve (obtained from the market)
     # This curve is based on the estimation to real market data
 
-    P0T = lambda T: np.exp(0.0012*T+0.0007) 
-
+    P0T = lambda T: np.exp(0.001*T+0.0007)
+    
     # Settings for the COS method
 
     N = 2000
@@ -380,71 +381,34 @@ def mainCalculation():
 
     ################## Here we define market option prices #################
     
-    #Para fecha de referencia 04/10/2021
-    #CALL
-    #T = 1.0
-    #referenceIV = np.array([803.807, 487.1833, 233.2686])/1000.0
-    
-    #CALL
-    #T = 2.0
-    #referenceIV = np.array([783.6343, 283.6715, 137.0928])/1000.0
-    
-    #CALL
-    #T = 3.0
-    #referenceIV = np.array([766.7052, 314.8998, 179.235])/1000.0
-    
-    #PUT
-    #T = 1.0
-    #referenceIV = np.array([127.7287, 963.1922, 963.1922])/1000.0
-    
-    #PUT
-    #T = 2.0
-    #referenceIV = np.array([223.3451, 537.363, 797.7749])/1000.0
-    
-    #PUT
-    #T = 3.0
-    #referenceIV = np.array([310.0075, 674.2464, 946.6038])/1000.0
-    
-    
-    
-    #Para fecha de referencia 20/05/2021
-    
-    
-    #CALL
-    #T = 1.0
-    #referenceIV = np.array([812.2896, 495.6061, 240.8545])/1000.0
-    
-    #CALL
-    #T = 2.0
-    #referenceIV = np.array([791.1229, 292.7653, 146.8104])/1000.0
-    
-    #CALL
-    T = 3.0
-    referenceIV = np.array([780.8868, 328.2872, 105.0797])/1000.0
-    
-    #PUT
-    #T = 1.0
-    #referenceIV = np.array([110.8379, 332.2509, 905.3051])/1000.0
-    
-    #PUT
-    #T = 2.0
-    #referenceIV = np.array([197.4155, 495.6061, 1064,906])/1000.0
-    
-    #PUT
-    #T = 3.0
-    #referenceIV = np.array([283.1448, 629,4516, 1205.151])/1000.0
-    
 
     # Strike range
 
-    frwd = S0/P0T(T)
-    K = [0.4*frwd, frwd, 1.2*frwd]
+    frwd = 3897.953
+    K = [0.8*frwd, 0.9*frwd, 1*frwd, 1.1*frwd,1.2*frwd]
     K = np.array(K).reshape([len(K),1])
-
-    referenceIV = np.array(referenceIV).reshape([len(referenceIV),1])
-    referencePrice = P0T(T)* BS_Call_Put_Option_Price(CP,S0 / P0T(T),K,referenceIV,T,0.0)
-
-
+    
+    ###Opciones call 21/10###
+    
+    #T = 1.0
+    #referencePrice = np.array([803.807, 487.1833, 233.2686, 76.88376, 17.97704])
+    
+    #T = 2.0
+    #referencePrice = np.array([783.6343, 503.0326, 283.6715, 137.0928, 58.59257])
+    
+    #T = 3.0
+    #referencePrice = np.array([766.7052, 511.6932, 314.8998, 179.235, 96.16299])
+    
+    ###Opciones put 21/10###
+    
+    T = 1.0
+    referencePrice = np.array([127.7287, 216.4284, 367.837, 616.7755, 963.1922])
+   
+    #referenceIV = np.array(referenceIV).reshape([len(referenceIV),1])
+    #referencePrice = P0T(T)* BS_Call_Put_Option_Price(CP,S0 / P0T(T),K,referenceIV,T,0.0)
+    
+    
+    
     # Calibrate the H1HW model and show the output
 
     plt.figure(2)
@@ -468,7 +432,6 @@ def mainCalculation():
     plt.plot(K,valCOS_H1HW,'--r')
     plt.legend(['Input','Calibration output'])
 
-
     print("Optimal parameters for H1-HW are: gamma = {0:.3f}, vBar = {1:.3f}, Rxv = {2:.3f}, v0 = {3:.3f}".format(gamma,vBar,Rxv,v0))
     print("=======================================================================")
 
@@ -477,8 +440,8 @@ def mainCalculation():
     IVH1HW =np.zeros([len(K),1])
     IVMarket =np.zeros([len(K),1])
     for (idx,k) in enumerate(K):
-        IVMarket[idx] = ImpliedVolatilityBlack76(CP,referencePrice[idx]/P0T(T),k,T,S0/P0T(T))*1000.0
-        IVH1HW[idx] = ImpliedVolatilityBlack76(CP,valCOS_H1HW[idx]/P0T(T),k,T,S0/P0T(T))*1000.0
+        IVMarket[idx] = ImpliedVolatilityBlack76(CP,referencePrice[idx]/P0T(T),k,T,frwd)*100.0
+        IVH1HW[idx] = ImpliedVolatilityBlack76(CP,valCOS_H1HW[idx]/P0T(T),k,T,frwd)*100.0
 
     plt.figure(3)
     plt.plot(K,IVMarket)
