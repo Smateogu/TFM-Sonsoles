@@ -36,7 +36,7 @@ def CallPutOptionPriceCOSMthd_StochIR(cf,CP,S0,tau,K,N,L,P0T):
         K = np.array(K).reshape([len(K),1])
 
     # Assigning i=sqrt(-1)
-    i = np.complex(0.0,1.0) 
+    i = complex(0.0,1.0) 
     x0 = np.log(S0 / K)   
 
     # Truncation domain
@@ -141,7 +141,7 @@ def C(u,tau,lambd):
     return 1.0/lambd*(i*u-1.0)*(1.0-np.exp(-lambd*tau))
 
 def D(u,tau,kappa,Rxsigma,gamma):
-    i=np.complex(0.0,1.0)
+    i=complex(0.0,1.0)
     a_0=-1.0/2.0*u*(i+u)
     a_1=2.0*(gamma*Rxsigma*i*u-kappa)
     a_2=2.0*gamma*gamma
@@ -150,7 +150,7 @@ def D(u,tau,kappa,Rxsigma,gamma):
     return (-a_1-d)/(2.0*a_2*(1.0-g*np.exp(-d*tau)))*(1.0-np.exp(-d*tau))
 
 def E(u,tau,lambd,gamma,Rxsigma,Rrsigma,Rxr,eta,kappa,sigmabar):
-    i=np.complex(0.0,1.0)
+    i=complex(0.0,1.0)
     a_0=-1.0/2.0*u*(i+u)
     a_1=2.0*(gamma*Rxsigma*i*u-kappa)
     a_2=2*gamma*gamma
@@ -171,7 +171,7 @@ def E(u,tau,lambd,gamma,Rxsigma,Rrsigma,Rxr,eta,kappa,sigmabar):
     return np.exp(c_1*tau)*1.0/(1.0-g*np.exp(-d*tau))*(I_1+I_2+I_3)
 
 def A(u,tau,eta,lambd,Rxsigma,Rrsigma,Rxr,gamma,kappa,sigmabar):
-    i=np.complex(0.0,1.0)
+    i=complex(0.0,1.0)
     a_0=-1.0/2.0*u*(i+u)
     a_1=2.0*(gamma*Rxsigma*i*u-kappa)
     a_2=2.0*gamma*gamma
@@ -212,18 +212,19 @@ def A(u,tau,eta,lambd,Rxsigma,Rrsigma,Rxr,gamma,kappa,sigmabar):
 def meanSqrtV_3(kappa,v0,vbar,gamma):
     delta = 4.0 *kappa*vbar/gamma/gamma
     c = lambda t: 1.0/(4.0*kappa)*gamma*gamma*(1.0-np.exp(-kappa*(t)))
-    kappaBar = lambda t: 4.0*kappa*v0*np.exp(-kappa*t)/(gamma*gamma*(1.0-np.exp(-kappa*t)))
-    temp1 = lambda t: np.sqrt(2.0*c(t))* sp.gamma((1.0
-                                                   +delta)/2.0)/sp.gamma(delta/2.0)*sp.hyp1f1(-0.5,delta/2.0,-kappaBar(t)/2.0)
+    kappaBar = lambda t: 4.0*kappa*v0*np.exp(-kappa*t) \
+        /(gamma*gamma*(1.0-np.exp(-kappa*t)))
+    temp1 = lambda t: np.sqrt(2.0*c(t))* sp.gamma((1.0+delta)/2.0) \
+        /sp.gamma(delta/2.0)*sp.hyp1f1(-0.5,delta/2.0,-kappaBar(t)/2.0)
     return temp1
 
 def C_H1HW(u,tau,lambd):
-    i = np.complex(0.0,1.0)
+    i = complex(0.0,1.0)
     C = (i*u - 1.0)/lambd * (1-np.exp(-lambd*tau))
     return C
 
 def D_H1HW(u,tau,kappa,gamma,rhoxv):
-    i = np.complex(0.0,1.0)
+    i = complex(0.0,1.0)
 
     D1 = np.sqrt(np.power(kappa-gamma*rhoxv*i*u,2)+(u*u+i*u)*gamma*gamma)
     g  = (kappa-gamma*rhoxv*i*u-D1)/(kappa-gamma*rhoxv*i*u+D1)
@@ -232,14 +233,15 @@ def D_H1HW(u,tau,kappa,gamma,rhoxv):
     return D
 
 def A_H1HW(u,tau,P0T,lambd,eta,kappa,gamma,vbar,v0,rhoxv,rhoxr):
-    i  = np.complex(0.0,1.0)
+    i  = complex(0.0,1.0)
     D1 = np.sqrt(np.power(kappa-gamma*rhoxv*i*u,2)+(u*u+i*u)*gamma*gamma)
     g  = (kappa-gamma*rhoxv*i*u-D1)/(kappa-gamma*rhoxv*i*u+D1)
 
     # Function theta(t)
     dt = 0.0001    
     f0T = lambda t: - (np.log(P0T(t+dt))-np.log(P0T(t-dt)))/(2.0*dt)
-    theta = lambda t: 1.0/lambd * (f0T(t+dt)-f0T(t-dt))/(2.0*dt) + f0T(t) + eta*eta/(2.0*lambd*lambd)*(1.0-np.exp(-2.0*lambd*t))  
+    theta = lambda t: 1.0/lambd * (f0T(t+dt)-f0T(t-dt))/(2.0*dt) + f0T(t) \
+        + eta*eta/(2.0*lambd*lambd)*(1.0-np.exp(-2.0*lambd*t))  
 
     # Integration within the function I_1
     N  = 500
@@ -252,7 +254,8 @@ def A_H1HW(u,tau,P0T,lambd,eta,kappa,gamma,vbar,v0,rhoxv,rhoxr):
     I_1_adj = (i*u-1.0) * value1
     I_2     = tau/(gamma**2.0) *(kappa-gamma*rhoxv*i*u-D1) \
         - 2.0/(gamma**2.0)*np.log((1.0-g*np.exp(-D1*tau))/(1.0-g))
-    I_3     = 1.0/(2.0*np.power(lambd,3.0))* np.power(i+u,2.0)*(3.0+np.exp(-2.0*lambd*tau)-4.0*np.exp(-lambd*tau)-2.0*lambd*tau)
+    I_3     = 1.0/(2.0*np.power(lambd,3.0))*np.power(i+u,2.0) \
+        *(3.0+np.exp(-2.0*lambd*tau)-4.0*np.exp(-lambd*tau)-2.0*lambd*tau)
 
     meanSqrtV = meanSqrtV_3(kappa,v0,vbar,gamma)
     f2        = meanSqrtV(tau-z)*(1.0-np.exp(-lambd*z))
@@ -451,16 +454,18 @@ def mainCalculation():
     plt.plot(K,valCOS_H1HW,'--r')
     plt.legend(['Input','Calibration output'])
 
-    print("Optimal parameters for H1-HW are: gamma = {0:.3f}, vBar = {1:.3f}, Rxv = {2:.3f}, v0 = {3:.3f}".format(gamma,vBar,Rxv,v0))
+    print("Optimal parameters for H1-HW are: gamma = {0:.3f}, vBar = {1:.3f}, "
+          "Rxv = {2:.3f}, v0 = {3:.3f}".format(gamma,vBar,Rxv,v0))
     print("=======================================================================")
 
     # Plot implied volatilities for both models    
-
     IVH1HW =np.zeros([len(K),1])
     IVMarket =np.zeros([len(K),1])
     for (idx,k) in enumerate(K):
-        IVMarket[idx] = ImpliedVolatilityBlack76(CP,referencePrice[idx]/P0T(T),k,T,frwd)*100.0
-        IVH1HW[idx] = ImpliedVolatilityBlack76(CP,valCOS_H1HW[idx]/P0T(T),k,T,frwd)*100.0
+        IVMarket[idx] = ImpliedVolatilityBlack76(CP, referencePrice[idx]/P0T(T), 
+                                                 k,T,frwd)*100.0
+        IVH1HW[idx] = ImpliedVolatilityBlack76(CP, valCOS_H1HW[idx]/P0T(T), 
+                                               k,T,frwd)*100.0
 
     plt.figure(3)
     plt.plot(K,IVMarket)
@@ -474,4 +479,5 @@ def mainCalculation():
     print('H1HW IV')
     print(IVH1HW)
 
+# %% Run calibration
 mainCalculation()
