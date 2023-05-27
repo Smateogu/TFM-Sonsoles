@@ -388,7 +388,7 @@ def mainCalculation():
     K = [0.8*frwd, 0.9*frwd, 1*frwd, 1.1*frwd,1.2*frwd]
     K = np.array(K).reshape([len(K),1])
     
-    ###Opciones call 21/10###
+    ###Opciones call 4/10###
     
     #T = 1.0
     #referencePrice = np.array([803.807, 487.1833, 233.2686, 76.88376, 17.97704])
@@ -399,10 +399,38 @@ def mainCalculation():
     #T = 3.0
     #referencePrice = np.array([766.7052, 511.6932, 314.8998, 179.235, 96.16299])
     
-    ###Opciones put 21/10###
+    ###Opciones put 4/10###
     
     T = 1.0
     referencePrice = np.array([127.7287, 216.4284, 367.837, 616.7755, 963.1922])
+    
+    #T = 2.0
+    #referencePrice = np.array([223.3451, 349.7339, 537.3632, 797.7749, 1126.265])
+    
+    #T = 3.0
+    #referencePrice = np.array([310.0075, 463.0177, 674.2464, 946.6038, 1271.554])
+    
+    ###Opciones call 20/05###
+    
+    #T = 1.0
+    #referencePrice = np.array([812.2896, 495.6061, 240.8545, 81.86615, 21.06065])
+    
+    #T = 2.0
+    #referencePrice = np.array([791.1229, 511.3862, 292.7653, 146.8104, 65.51705])
+    
+    #T = 3.0
+    #referencePrice = np.array([780.8868, 526.3929, 328.2872, 190.8346, 105.0797])
+    
+    ###Opciones put 20/05###
+    
+    #T = 1.0
+    #referencePrice = np.array([110.8379, 190.5785, 332.2509, 569.6866, 905.3051])
+    
+    #T = 2.0
+    #referencePrice = np.array([197.4155, 315.9529, 495.6061, 747.9254, 1064.906])
+    
+    #T = 3.0
+    #referencePrice = np.array([283.1448, 428.1042, 629.4516, 891.4522, 1205.151])
    
     #referenceIV = np.array(referenceIV).reshape([len(referenceIV),1])
     #referencePrice = P0T(T)* BS_Call_Put_Option_Price(CP,S0 / P0T(T),K,referenceIV,T,0.0)
@@ -440,8 +468,8 @@ def mainCalculation():
     IVH1HW =np.zeros([len(K),1])
     IVMarket =np.zeros([len(K),1])
     for (idx,k) in enumerate(K):
-        IVMarket[idx] = ImpliedVolatilityBlack76(CP,referencePrice[idx]/P0T(T),k,T,frwd)*100.0
-        IVH1HW[idx] = ImpliedVolatilityBlack76(CP,valCOS_H1HW[idx]/P0T(T),k,T,frwd)*100.0
+        IVMarket[idx] = ImpliedVolatilityBlack76(CP,referencePrice[idx]/P0T(T),k,T,S0/P0T(T))*100.0
+        IVH1HW[idx] = ImpliedVolatilityBlack76(CP,valCOS_H1HW[idx]/P0T(T),k,T,S0/P0T(T))*100.0
 
     plt.figure(3)
     plt.plot(K,IVMarket)
